@@ -1,10 +1,17 @@
 import 'dart:async';
 import 'package:device_apps/device_apps.dart';
-import 'package:usage_stats/usage_stats.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
+import 'package:smart_phone_addiction/provider/apps_provider.dart';
+//import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_phone_addiction/ui/setting_page.dart';
 import 'package:smart_phone_addiction/wigets/app_details.dart';
 import 'package:smart_phone_addiction/wigets/usage_time_card.dart';
+
+import '../provider/whit_list_provider.dart';
+import '../service/background_service.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -16,12 +23,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<UsageInfo> _usageInfoList = [];
-  List<ApplicationWithIcon> _installedAppsWithIcons = [];
-  Map<String, Duration> _appUsageMap = {};
   // List<EventUsageInfo> events = [];
   // Map<String?, NetworkInfo?> _netInfoMap = Map();Reading a NULL string not supported here.
-  final int _usageThresholdMinutes = 240; // 4
+
 /*
   Future<void> initUsage() async {
     try {
@@ -74,106 +78,34 @@ class _MyHomePageState extends State<MyHomePage> {
  */
   @override
   void initState() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      Provider.of<AppsProvider>(context, listen: false).fetchUsageStats();
+      Provider.of<AppsProvider>(context, listen: false).fetchInstalledApps();
+      // final v = Provider.of<AppsProvider>(context, listen: false);
+      // Provider.of<AppsProvider>(context, listen: false)
+      //     .getHighestUsageAppDetails(v.installedAppsWithIcons);
+
+      // Perform state changes here
+      // Example: Provider.of<AppsProvider>(context, listen: false).updateState();
+    });
+
     super.initState();
-    _fetchUsageStats();
-    _fetchInstalledApps();
+
+    // _fetchInstalledApps();
   }
-
-  Future<void> _fetchUsageStats() async {
-    UsageStats.grantUsagePermission();
-    DateTime endDate = DateTime.now();
-    DateTime startDate =
-        endDate.subtract(const Duration(days: 1)); // Last 24 hours
-
-    try {
-      List<UsageInfo> usageStats =
-          await UsageStats.queryUsageStats(startDate, endDate);
-
-
-        setState(() {
-          _usageInfoList = usageStats;
-         // _sortAppsByUsage();
-           _appUsageMap = _calculateTotalUsage(usageStats);
-          // _installedAppsWithIcons.sort((a, b) {
-          //   Duration aUsage = _appUsageMap[a.packageName] ?? Duration();
-          //   Duration bUsage = _appUsageMap[b.packageName] ?? Duration();
-          //   return bUsage.compareTo(aUsage); // Sort in descending order
-          // });
-        });
-
-
-    } catch (e) {
-      setState(() {
-        _usageInfoList = [];
-      });
-    }
-  }
-  void _sortAppsByUsage() {
-    _installedAppsWithIcons.sort((a, b) {
-      int aUsage = _getUsageTime(a.packageName);
-      int bUsage = _getUsageTime(b.packageName);
-      return bUsage.compareTo(aUsage); // Descending order
-    });
-  }
-
-  Future<void> _fetchInstalledApps() async {
-    List<Application> apps = await DeviceApps.getInstalledApplications(
-      onlyAppsWithLaunchIntent: true,
-      includeSystemApps: true,
-    );
-
-    List<ApplicationWithIcon> appsWithIcons = [];
-    for (var app in apps) {
-      var appWithIcon = await DeviceApps.getApp(app.packageName, true);
-      if (appWithIcon is ApplicationWithIcon) {
-        appsWithIcons.add(appWithIcon);
-      }
-    }
-
-    setState(() {
-      _installedAppsWithIcons = appsWithIcons;
-    });
-    _sortAppsByUsage();
-  }
-  Map<String, Duration> _calculateTotalUsage(List<UsageInfo> usageStats) {
-    Map<String, Duration> usageMap = {};
-    for (var info in usageStats) {
-      Duration totalUsage = Duration(milliseconds: int.parse(info.totalTimeInForeground!));
-      if (usageMap.containsKey(info.packageName)) {
-        usageMap[info.packageName!] = usageMap[info.packageName]! + totalUsage;
-      } else {
-        usageMap[info.packageName!] = totalUsage;
-      }
-    }
-    return usageMap;
-  }
-  double _getUsageProgress(String packageName) {
-    Duration totalUsage = _appUsageMap[packageName] ?? const Duration();
-    return totalUsage.inMinutes / _usageThresholdMinutes;
-  }
-  // String _getUsageTime(String packageName) {
-  //   Duration totalUsage = Duration();
-  //   for (var info in _usageInfoList) {
-  //     if (info.packageName == packageName) {
-  //       totalUsage +=
-  //           Duration(milliseconds: int.parse(info.totalTimeInForeground!));
-  //     }
-  //   }
-  //   return '${totalUsage.inMinutes} minutes';
+  // Future<void> initializeNotifications() async {
+  //   const AndroidInitializationSettings initializationSettingsAndroid =
+  //   AndroidInitializationSettings('@mipmap/ic_launcher');
+  //   const InitializationSettings initializationSettings =
+  //   InitializationSettings(android: initializationSettingsAndroid);
+  //   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   // }
-  int _getUsageTime(String packageName) {
-    Duration totalUsage = Duration();
-    for (var info in _usageInfoList) {
-      if (info.packageName == packageName) {
-        totalUsage += Duration(milliseconds: int.parse(info.totalTimeInForeground!));
-      }
-    }
-    return totalUsage.inMinutes;
-  }
+
   @override
   Widget build(BuildContext context) {
     double height = MediaQuery.of(context).size.height;
     double width = MediaQuery.of(context).size.width;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.onSecondary,
@@ -181,8 +113,10 @@ class _MyHomePageState extends State<MyHomePage> {
         actions: [
           IconButton(
               onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => SettingsPage()));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const SettingsPage()));
               },
               icon: const Icon(
                 Icons.settings,
@@ -267,65 +201,151 @@ class _MyHomePageState extends State<MyHomePage> {
             //     ],
             //   ),
             // ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Column(
+            Consumer<AppsProvider>(
+              builder: (BuildContext context, value, Widget? child) {
+                final appUsageDetails = value.highestUsageAppDetails;
+                if (appUsageDetails == null) {
+                  return const Text('No data available');
+                }
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text('Most used app'),
-                    Text('App Name'),
-                    Text('Hours used'),
-                  ],
-                ),
-                Container(
-                  height: 70,
-                  width: 70,
-                  decoration: BoxDecoration(
-                      color: Colors.green,
-                      borderRadius: BorderRadius.circular(100)),
-                ),
-              ],
-            ),
-            const Text('STATS'),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                UsageTime(timeTitle: 'Screen\nTime', value: '2 hours'),
-                UsageTime(timeTitle: 'Usage\nPercentage', value: '95%'),
-              ],
-            ),
-            SizedBox(
-              height: height * .6,
-              width: double.infinity,
-              child: Card(
-                child: ListView.builder(
+                    Column(
+                      children: [
+                        const Text('Most used app'),
 
-                    itemCount: _installedAppsWithIcons.length,
-                    itemBuilder: (context, index) {
-
-                      double usageProgress = _getUsageProgress(_installedAppsWithIcons[index].packageName);
-                      return ListTile(
-                        leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.memory(
-                                _installedAppsWithIcons[index].icon,
-                                width: 40,
-                                height: 40)),
-                        title: Text(_installedAppsWithIcons[index].appName),
-                        subtitle: ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
-                          child: LinearProgressIndicator(
-                            backgroundColor: Colors.white,
-                            value: usageProgress ,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                Colors.orange),
+                        Text(appUsageDetails.appName),
+                        Text(
+                            'Usage: ${appUsageDetails.usageHours.toStringAsFixed(2)} hours'),
+                      ],
+                    ),
+                    const SizedBox(
+                      width: 10,
+                    ),
+                    // Container(
+                    //   height: 70,
+                    //   width: 70,
+                    //   decoration: BoxDecoration(
+                    //       color: Colors.green,
+                    //       borderRadius: BorderRadius.circular(100)),
+                    //Image.memory(appUsageDetails.appIcon.icon),
+                    // ),
+                    Stack(
+                      children: [
+                        SizedBox(
+                          height: height * 0.15,
+                          width: width * 0.32,
+                          child: PieChart(
+                            PieChartData(
+                                startDegreeOffset: 180,
+                                sectionsSpace: 0,
+                                centerSpaceRadius: 40,
+                                // you can assign values according to your need
+                                sections: [
+                                  PieChartSectionData(
+                                    value: 60,
+                                    color: Colors.orange,
+                                    radius: 20,
+                                    showTitle: false,
+                                  ),
+                                  PieChartSectionData(
+                                    value: 40,
+                                    color: Colors.black12,
+                                    radius: 20,
+                                    showTitle: false,
+                                  )
+                                ]),
                           ),
                         ),
-                      );
-                      //  Text('Usage: $usageTime')
-                      //APPDetails(value: 40.2, packageName: '${events[index].eventType}',);
-                    }),
-              ),
+                        Positioned.fill(
+                          //now perfect
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                height: 50,
+                                width: 50,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color: Colors.grey.shade200,
+                                        blurRadius: 10.0,
+                                        spreadRadius: 10.0,
+                                        offset: const Offset(3.0, 3.0)),
+                                  ],
+                                ),
+                                child:  Center(
+                                  child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Image.memory(
+                                          appUsageDetails.appIcon.icon,
+                                          width: 40,
+                                          height: 40)),
+                                ),
+                              )
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+            const Text('STATS'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                UsageTime(
+                    timeTitle: 'Screen\nTime',
+                    value:
+                        '${context.watch<AppsProvider>().allTotalUsage} hour(s)'),
+                UsageTime(
+                    timeTitle: 'Usage\nPercentage',
+                    value:
+                        '${context.watch<AppsProvider>().totalUsagePercentage}%'),
+              ],
+            ),
+            Consumer<AppsProvider>(
+              builder:
+                  (BuildContext context, appsProviderValue, Widget? child) {
+                return Expanded(
+                  child: Card(
+                    child: ListView.builder(
+                        itemCount:
+                            appsProviderValue.installedAppsWithIcons.length,
+                        itemBuilder: (context, index) {
+                          double usageProgress = appsProviderValue
+                              .getUsageProgress(appsProviderValue
+                                  .installedAppsWithIcons[index].packageName);
+                          return ListTile(
+                            leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.memory(
+                                    appsProviderValue
+                                        .installedAppsWithIcons[index].icon,
+                                    width: 40,
+                                    height: 40)),
+                            title: Text(appsProviderValue
+                                .installedAppsWithIcons[index].appName),
+                            subtitle: ClipRRect(
+                              borderRadius: BorderRadius.circular(5),
+                              child: LinearProgressIndicator(
+                                backgroundColor: Colors.white,
+                                value: usageProgress,
+                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                    Colors.orange),
+                              ),
+                            ),
+                          );
+                          //  Text('Usage: $usageTime')
+                          //APPDetails(value: 40.2, packageName: '${events[index].eventType}',);
+                        }),
+                  ),
+                );
+              },
             )
           ],
         ),
@@ -336,5 +356,13 @@ class _MyHomePageState extends State<MyHomePage> {
       //   child: const Icon(Icons.add),
       // ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  String formatDuration(Duration duration) {
+    int hours = duration.inHours;
+    int minutes = duration.inMinutes.remainder(60);
+    int seconds = duration.inSeconds.remainder(60);
+
+    return "With $hours:${minutes.toString().padLeft(2, '0')} hrs ${seconds.toString().padLeft(2, '0')} mins of usage";
   }
 }
