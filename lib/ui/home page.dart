@@ -1,7 +1,10 @@
 import 'dart:async';
+
 import 'package:device_apps/device_apps.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:smart_phone_addiction/provider/apps_provider.dart';
 //import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -9,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:smart_phone_addiction/ui/setting_page.dart';
 import 'package:smart_phone_addiction/wigets/app_details.dart';
 import 'package:smart_phone_addiction/wigets/usage_time_card.dart';
+import 'package:usage_stats/usage_stats.dart';
 
 import '../provider/whit_list_provider.dart';
 import '../service/background_service.dart';
@@ -78,6 +82,8 @@ class _MyHomePageState extends State<MyHomePage> {
  */
   @override
   void initState() {
+    Permission.scheduleExactAlarm.request();
+    UsageStats.grantUsagePermission();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       Provider.of<AppsProvider>(context, listen: false).fetchUsageStats();
       Provider.of<AppsProvider>(context, listen: false).fetchInstalledApps();
@@ -93,6 +99,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
     // _fetchInstalledApps();
   }
+
+  permission() {}
   // Future<void> initializeNotifications() async {
   //   const AndroidInitializationSettings initializationSettingsAndroid =
   //   AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -107,9 +115,17 @@ class _MyHomePageState extends State<MyHomePage> {
     double width = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.onSecondary,
-        title: Text(widget.title),
+        backgroundColor: Colors.white,
+        title: Text(
+          widget.title,
+          style: GoogleFonts.poppins(
+              textStyle: const TextStyle(
+                  fontSize: 18,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w500)),
+        ),
         actions: [
           IconButton(
               onPressed: () {
@@ -126,7 +142,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -205,18 +221,46 @@ class _MyHomePageState extends State<MyHomePage> {
               builder: (BuildContext context, value, Widget? child) {
                 final appUsageDetails = value.highestUsageAppDetails;
                 if (appUsageDetails == null) {
-                  return const Text('No data available');
+                  return  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text('No data available',
+                        style: GoogleFonts.lato(
+                            textStyle: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.black,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  );
                 }
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Column(
                       children: [
-                        const Text('Most used app'),
-
-                        Text(appUsageDetails.appName),
+                         Text('Most used app',
+                          style: GoogleFonts.lato(
+                              textStyle: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                        Text(appUsageDetails.appName,
+                          style: GoogleFonts.poppins(
+                              textStyle: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w500)),
+                        ),
                         Text(
-                            'Usage: ${appUsageDetails.usageHours.toStringAsFixed(2)} hours'),
+                            'Usage: ${appUsageDetails.usageHours.toStringAsFixed(2)} hours',
+                          style: GoogleFonts.poppins(
+                              textStyle: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w400)),
+                        ),
                       ],
                     ),
                     const SizedBox(
@@ -276,7 +320,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                         offset: const Offset(3.0, 3.0)),
                                   ],
                                 ),
-                                child:  Center(
+                                child: Center(
                                   child: ClipRRect(
                                       borderRadius: BorderRadius.circular(16),
                                       child: Image.memory(
@@ -294,7 +338,16 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
             ),
-            const Text('STATS'),
+             Padding(
+               padding: const EdgeInsets.only(left: 18.0,bottom: 10),
+               child: Text('STATS',
+                 style: GoogleFonts.poppins(
+                  textStyle: const TextStyle(
+                      fontSize: 16,
+                      color: Colors.black,
+                      fontWeight: FontWeight.w600)),
+               ),
+             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -308,41 +361,61 @@ class _MyHomePageState extends State<MyHomePage> {
                         '${context.watch<AppsProvider>().totalUsagePercentage}%'),
               ],
             ),
+            const SizedBox(
+              height: 20,
+            ),
             Consumer<AppsProvider>(
               builder:
                   (BuildContext context, appsProviderValue, Widget? child) {
                 return Expanded(
                   child: Card(
-                    child: ListView.builder(
-                        itemCount:
-                            appsProviderValue.installedAppsWithIcons.length,
-                        itemBuilder: (context, index) {
-                          double usageProgress = appsProviderValue
-                              .getUsageProgress(appsProviderValue
-                                  .installedAppsWithIcons[index].packageName);
-                          return ListTile(
-                            leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.memory(
-                                    appsProviderValue
-                                        .installedAppsWithIcons[index].icon,
-                                    width: 40,
-                                    height: 40)),
-                            title: Text(appsProviderValue
-                                .installedAppsWithIcons[index].appName),
-                            subtitle: ClipRRect(
-                              borderRadius: BorderRadius.circular(5),
-                              child: LinearProgressIndicator(
-                                backgroundColor: Colors.white,
-                                value: usageProgress,
-                                valueColor: const AlwaysStoppedAnimation<Color>(
-                                    Colors.orange),
+                    elevation: 20.7,
+shadowColor: Colors.grey,
+                    surfaceTintColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white70,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: ListView.builder(
+                          itemCount:
+                              appsProviderValue.installedAppsWithIcons.length,
+                          itemBuilder: (context, index) {
+                            double usageProgress = appsProviderValue
+                                .getUsageProgress(appsProviderValue
+                                    .installedAppsWithIcons[index].packageName);
+                            return ListTile(
+                              leading: ClipRRect(
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Image.memory(
+                                      appsProviderValue
+                                          .installedAppsWithIcons[index].icon,
+                                      width: 40,
+                                      height: 40)),
+                              title: Text(appsProviderValue
+                                  .installedAppsWithIcons[index].appName,
+                                style: GoogleFonts.lato(
+                                  textStyle: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.w600)),),
+                              subtitle: ClipRRect(
+                                borderRadius: BorderRadius.circular(5),
+                                child: LinearProgressIndicator(
+                                  backgroundColor: Colors.grey[200],
+                                  value: usageProgress,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(
+                                      Colors.orange),
+                                ),
                               ),
-                            ),
-                          );
-                          //  Text('Usage: $usageTime')
-                          //APPDetails(value: 40.2, packageName: '${events[index].eventType}',);
-                        }),
+                            );
+                            //  Text('Usage: $usageTime')
+                            //APPDetails(value: 40.2, packageName: '${events[index].eventType}',);
+                          }),
+                    ),
                   ),
                 );
               },

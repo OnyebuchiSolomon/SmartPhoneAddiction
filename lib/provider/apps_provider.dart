@@ -93,7 +93,9 @@ class AppsProvider extends ChangeNotifier {
     totalUsagePercentage = double.parse(percentageOfDay.toStringAsFixed(1));
 
     allTotalUsage = totalUsageInHours;
-    print('..........................$totalUsagePercentage');
+    print('.............'
+        ''
+        '.............$totalUsagePercentage');
     print('..................time........$totalUsageInHours');
     // usageStats.reduce((value, element) => int.parse(value.totalTimeInForeground!)>int.parse(element.totalTimeInForeground!)?value:element);
     // Calculate the highest usage app details

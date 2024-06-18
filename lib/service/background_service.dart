@@ -65,7 +65,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
-
+import 'dart:developer' as dev_debug;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
@@ -73,8 +73,12 @@ import 'package:flutter_background_service_android/flutter_background_service_an
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_phone_addiction/provider/apps_provider.dart';
+import 'package:smart_phone_addiction/provider/setting_provider.dart';
+import 'package:smart_phone_addiction/provider/whit_list_provider.dart';
 import 'package:smart_phone_addiction/service/show_notice.dart';
 
+const String devDebugName = 'Smart_Phone_Addiction';
+//late bool trueFalse= false;
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
 
@@ -83,13 +87,13 @@ Future<void> initializeService() async {
     'my_foreground2', // id
     'MY FOREGROUND SERVICE', // title
     description:
-    'This channel is used for important notifications.', // description
+        'This channel is used for important notifications.', // description
     importance: Importance.high, // importance must be at low or higher level
     //playSound: true,
   );
 
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   if (Platform.isIOS || Platform.isAndroid) {
     await flutterLocalNotificationsPlugin.initialize(
@@ -102,7 +106,7 @@ Future<void> initializeService() async {
 
   await flutterLocalNotificationsPlugin
       .resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
   await service.configure(
@@ -130,20 +134,18 @@ Future<void> initializeService() async {
     ),
   );
 }
+
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
   // Only available for flutter 3.0.0 and later
-  DartPluginRegistrant.ensureInitialized();
+ // DartPluginRegistrant.ensureInitialized();
 
   // For flutter prior to version 3.0.0
-  // We have to register the plugin manually
 
-  SharedPreferences preferences = await SharedPreferences.getInstance();
-  await preferences.setString("hello", "world");
 
   /// OPTIONAL when use custom notification
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-  FlutterLocalNotificationsPlugin();
+      FlutterLocalNotificationsPlugin();
 
   if (service is AndroidServiceInstance) {
     service.on('setAsForeground').listen((event) {
@@ -158,45 +160,27 @@ void onStart(ServiceInstance service) async {
   service.on('stopService').listen((event) {
     service.stopSelf();
   });
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-
 
   // bring to foreground
-  Timer.periodic(const Duration(seconds: 3), (timer) async {
-    int id = Random().nextInt(10000);
-    bool isEnableNotification = prefs.getBool('notification')??false;
-    if(!isEnableNotification){
-      return ;
-    }
-    // if (service is AndroidServiceInstance) {
-    //   if (await service.isForegroundService()) {
-    //     /// OPTIONAL for use custom notification
-    //     /// the notification id must be equals with AndroidConfiguration when you call configure() method.
-    //     flutterLocalNotificationsPlugin.show(
-    //       900,
-    //       'COOL SERVICE',
-    //       'Awesome ${DateTime.now()}',
-    //       const NotificationDetails(
-    //         android: AndroidNotificationDetails(
-    //           'my_foreground',
-    //           'MY FOREGROUND SERVICE',
-    //           icon: '@mipmap/ic_launcher',
-    //           ongoing: true,
-    //         ),
-    //       ),
-    //     );
-    //
-    //     // if you don't using custom notification, uncomment this
-    //     service.setForegroundNotificationInfo(
-    //       title: "My App Service",
-    //       content: "Updated at ${DateTime.now()}",
-    //     );
-    //   }
-    // }
-    /// you can see this log in logcat
-    print('FLUTTER BACKGROUND SERVICE: ${DateTime.now()}');
+  Timer.periodic(const Duration(seconds: 5), (timer) async {
+   // bool? trueFalse = await getNoti();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.reload();
+    final trueFalse = prefs.getBool('notification')??false;
+    //   getCurrent();
+    dev_debug.log('$trueFalse service Side', name: devDebugName);
+    WhiteListProvider provider = WhiteListProvider();
+    provider.fetchUsageStats();
 
-    fetchUsageStats();
+
+    if (!trueFalse) {
+      return;
+    }
+    provider.sendNotice();
+    dev_debug.log('FLUTTER BACKGROUND SERVICE: ${DateTime.now()}');
+
+    dev_debug.log('$trueFalse service Side', name: devDebugName);
+
     // test using external plugin
     // flutterLocalNotificationsPlugin.show(
     //   900,
@@ -211,10 +195,10 @@ void onStart(ServiceInstance service) async {
     //     ),
     //   ),
     // );
-    service.invoke(
-      'update');
+    service.invoke('update');
   });
 }
+
 @pragma('vm:entry-point')
 Future<bool> onIosBackground(ServiceInstance service) async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -225,9 +209,21 @@ Future<bool> onIosBackground(ServiceInstance service) async {
   final log = preferences.getStringList('log') ?? <String>[];
   log.add(DateTime.now().toIso8601String());
   await preferences.setStringList('log', log);
-
   return true;
 }
 
+// Future<bool> getNoti() async {
+//   SharedPreferences prefs = await SharedPreferences.getInstance();
+//   prefs.reload();
+//   return prefs.getBool('notification')!;
+// }
+/*
+getCurrent()  async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  trueFalse =  prefs.getBool('notification')!;
 
+  dev_debug.log('$trueFalse ...getCurrentValue',name:devDebugName );
 
+}
+
+ */

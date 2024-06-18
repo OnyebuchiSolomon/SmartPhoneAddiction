@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_phone_addiction/provider/apps_provider.dart';
@@ -65,7 +67,7 @@ class _WhiteListPageState extends State<WhiteListPage> {
   @override
   void initState() {
     //loadApps();
-
+    Provider.of<WhiteListProvider>(context, listen: false).fetchInstalledApps();
     // TODO: implement initState
     super.initState();
   }
@@ -77,93 +79,144 @@ class _WhiteListPageState extends State<WhiteListPage> {
     final whiteListProvider = Provider.of<WhiteListProvider>(context);
     // Initialize based on the whiteListProvider if needed.
     whiteListProvider.loadApps();
-
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Consumer<AppsProvider>(
       builder: (BuildContext context, value, Widget? child) {
-        return  Consumer<WhiteListProvider>(
+        return Consumer<WhiteListProvider>(
           builder: (BuildContext context, whiteValue, Widget? child) {
-            List<ApplicationWithIcon> appsWithIcons = [];
-            for (String app in whiteValue.oldList) {
-              for(var appsWithIcon in value.installedAppsWithIcons){
-                if(appsWithIcon.packageName==app){
-                  appsWithIcons.add(appsWithIcon);
-
-                }
-
-              }}
+            // print( whiteValue.newInstalledAppsWithIcons.length);
+            // List<ApplicationWithIcon> appsWithIcons = [];
+            // for (String app in whiteValue.oldList) {
+            //   for (var appsWithIcon in value.installedAppsWithIcons) {
+            //     if (appsWithIcon.packageName == app) {
+            //       appsWithIcons.add(appsWithIcon);
+            //     }
+            //   }
+            // }
 
             return Scaffold(
               appBar: AppBar(
-                  backgroundColor: Colors.white,
-                  leading: IconButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    icon: const Icon(Icons.arrow_back),
-                  )),
+                backgroundColor: Colors.white,
+                leading: IconButton(
+                  onPressed: () async {
+                    // SharedPreferences pre =
+                    //     await SharedPreferences.getInstance();
+                    // pre.setStringList('whitedPackageName', []);
+                    // final f = pre.getStringList('whitedPackageName') ?? [];
+                    // print(
+                    //     'whitedPackageName length ${f.length}  whitedPackageName$f');
+                    Navigator.pop(context);
+                  },
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                // title: Text(
+                //   'WHITELISTED APP',
+                //   style: GoogleFonts.poppins(
+                //       textStyle: const TextStyle(
+                //           fontSize: 14,
+                //           color: Colors.black,
+                //           fontWeight: FontWeight.w600)),
+                // ),
+                actions: [
+                  // IconButton(
+                  //   onPressed: () async {
+                  //     SharedPreferences pre =
+                  //         await SharedPreferences.getInstance();
+                  //     final f = pre.getStringList('whitedPackageName') ?? [];
+                  //     print(
+                  //         'whitedPackageName length ${f.length}  whitedPackageName$f');
+                  //   },
+                  //   icon: const Icon(Icons.arrow_back),
+                  // )
+                ],
+              ),
               body: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(
-                      height: 10,
+                    SizedBox(
+                      height: 20,
                     ),
-                    const Text('WHITELISTED APP'),
-                    const SizedBox(
-                      height: 10,
+                    Text(
+                      'WHITELISTED APP',
+                      style: GoogleFonts.poppins(
+                          textStyle: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600)),
                     ),
-                    appsWithIcons.isEmpty
-                        ? Text('No App')
+                    SizedBox(
+                      height: 20,
+                    ),
+                    whiteValue.newInstalledAppsWithIcons.isEmpty
+                        ? Text(
+                            'No App',
+                            style: GoogleFonts.poppins(
+                                textStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.black,
+                                    fontWeight: FontWeight.w500)),
+                          )
                         : Expanded(
-                      child: ListView.builder(
-                          itemCount: appsWithIcons.length,
-                          itemBuilder: (context, index) => ListTile(
-                            leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.memory(
-                                    appsWithIcons[index]
-                                        .icon,
-                                    width: 40,
-                                    height: 40)),
-                            title: Text(appsWithIcons[index].appName),
-                            trailing: IconButton(
-                                onPressed: () {
-                                  whiteValue.removeWhiteListed(appsWithIcons[index]
-                                      .packageName);
-                                },
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.orange,
-                                )),
-                          )),
-                    )
+                            child: ListView.builder(
+                                itemCount:
+                                    whiteValue.newInstalledAppsWithIcons.length,
+                                itemBuilder: (context, index) {
+                                  final Uint8List imageIcon = whiteValue
+                                      .newInstalledAppsWithIcons[index].icon;
+
+                                  return ListTile(
+                                    leading: Container(
+                                      height: 50,
+                                      width: 50,
+                                      decoration: BoxDecoration(
+                                        color: Colors.black12,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(color: Colors.grey.shade300)
+                                      ),
+                                      child: const Icon(
+                                        Icons.android,
+                                        size: 30,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                    title: Text(whiteValue
+                                        .installedAppsWithIcons[index].appName),
+                                    // trailing: IconButton(
+                                    //     onPressed: () {
+                                    //       whiteValue.removeWhiteListed(appsWithIcons[index]
+                                    //           .packageName);
+                                    //     },
+                                    //     icon: const Icon(
+                                    //       Icons.delete,
+                                    //       color: Colors.orange,
+                                    //     )),
+                                  );
+                                }),
+                          ),
                   ],
                 ),
               ),
-              floatingActionButton: FloatingActionButton.small(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                backgroundColor: Colors.orange,
-                onPressed: () {
-                  _showPhasesButtonSheet();
-                },
-                tooltip: 'Add',
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                ),
-              ), // This tr
+              // floatingActionButton: FloatingActionButton.small(
+              //   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+              //   backgroundColor: Colors.orange,
+              //   onPressed: () {
+              //     _showPhasesButtonSheet();
+              //   },
+              //   tooltip: 'Add',
+              //   child: const Icon(
+              //     Icons.add,
+              //     color: Colors.white,
+              //   ),
+              // ), // This tr
             );
           },
-
         );
       },
-
     );
   }
 
@@ -205,39 +258,41 @@ class _WhiteListPageState extends State<WhiteListPage> {
                 Expanded(
                   child: Consumer<AppsProvider>(
                     builder: (BuildContext context, whiteValue, Widget? child) {
-                      return  Consumer<WhiteListProvider>(
+                      return Consumer<WhiteListProvider>(
                         builder: (BuildContext context, value, Widget? child) {
                           return whiteValue.installedAppsWithIcons.isEmpty
                               ? const Text('No app')
                               : ListView.builder(
-                              itemCount:
-                              whiteValue.installedAppsWithIcons.length,
-                              itemBuilder: (context, index) => Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Card(
-                                  child: ListTile(
-                                    onTap: () {
-                                      value.selectWhiteList(whiteValue.installedAppsWithIcons[index]
-                                          .packageName);
-                                    },
-                                    leading: ClipRRect(
-                                        borderRadius:
-                                        BorderRadius.circular(16),
-                                        child: Image.memory(
-                                            whiteValue.installedAppsWithIcons[
-                                            index]
-                                                .icon,
-                                            width: 40,
-                                            height: 40)),
-                                    title: Text(whiteValue.installedAppsWithIcons[index]
-                                        .appName),
-                                  ),
-                                ),
-                              ));
+                                  itemCount:
+                                      whiteValue.installedAppsWithIcons.length,
+                                  itemBuilder: (context, index) => Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Card(
+                                          child: ListTile(
+                                            onTap: () {
+                                              value.selectWhiteList(whiteValue
+                                                  .installedAppsWithIcons[index]
+                                                  .packageName);
+                                            },
+                                            leading: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                                child: Image.memory(
+                                                    whiteValue
+                                                        .installedAppsWithIcons[
+                                                            index]
+                                                        .icon,
+                                                    width: 40,
+                                                    height: 40)),
+                                            title: Text(whiteValue
+                                                .installedAppsWithIcons[index]
+                                                .appName),
+                                          ),
+                                        ),
+                                      ));
                         },
                       );
                     },
-
                   ),
                 ),
               ],

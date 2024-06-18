@@ -10,10 +10,18 @@ class UsageTime extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      elevation: 5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10)
+      ),
       child: Container(
-        color: Colors.white,
+
+        decoration: BoxDecoration(
+            color: Colors.white70,
+            borderRadius: BorderRadius.circular(10)
+        ),
         height: 70,
-        width: MediaQuery.of(context).size.width / 3,
+        width: MediaQuery.of(context).size.width / 2.5,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
