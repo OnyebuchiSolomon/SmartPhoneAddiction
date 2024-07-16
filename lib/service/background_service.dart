@@ -68,15 +68,13 @@ import 'dart:ui';
 import 'dart:developer' as dev_debug;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:smart_phone_addiction/provider/apps_provider.dart';
 import 'package:smart_phone_addiction/provider/setting_provider.dart';
 import 'package:smart_phone_addiction/provider/whit_list_provider.dart';
-import 'package:smart_phone_addiction/service/show_notice.dart';
-
 const String devDebugName = 'Smart_Phone_Addiction';
 //late bool trueFalse= false;
 Future<void> initializeService() async {
@@ -136,10 +134,10 @@ Future<void> initializeService() async {
 }
 
 @pragma('vm:entry-point')
-void onStart(ServiceInstance service) async {
+Future<void> onStart(ServiceInstance service) async {
   // Only available for flutter 3.0.0 and later
  // DartPluginRegistrant.ensureInitialized();
-
+  DartPluginRegistrant.ensureInitialized();
   // For flutter prior to version 3.0.0
 
 
@@ -164,6 +162,16 @@ void onStart(ServiceInstance service) async {
   // bring to foreground
   Timer.periodic(const Duration(seconds: 5), (timer) async {
    // bool? trueFalse = await getNoti();
+    DartPluginRegistrant.ensureInitialized();
+     const platform = MethodChannel('com.example.app_locker/accessibility');
+
+      // try {
+      //   dev_debug.log('sending message to _channel, ');
+      //   await platform.invokeListMethod('setBlockedApps', {'blockedApps': ['com.whatsapp']});
+      // } on PlatformException catch (e) {
+      //   print("Failed to set blocked apps: '${e.message}'.");
+      // }
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.reload();
     final trueFalse = prefs.getBool('notification')??false;

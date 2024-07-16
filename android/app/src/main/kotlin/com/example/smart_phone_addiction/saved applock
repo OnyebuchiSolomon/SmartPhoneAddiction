@@ -1,0 +1,238 @@
+package com.example.smart_phone_addiction;
+
+import static androidx.core.app.ActivityCompat.startActivityForResult;
+
+import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
+import android.annotation.SuppressLint;
+import android.app.ActivityManager;
+import android.app.admin.DevicePolicyManager;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.PixelFormat;
+import android.net.Uri;
+import android.os.Build;
+import android.view.LayoutInflater;
+import android.provider.Settings;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.WindowManager;
+import android.view.accessibility.AccessibilityEvent;
+import android.widget.Toast;
+
+import androidx.annotation.RequiresApi;
+
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+public class AppLockService extends AccessibilityService {
+    private static final String TAG = "AppLockService";
+    private ComponentName compName;
+    private DevicePolicyManager devicePolicyManager;
+    private final List<String> whiteList = new ArrayList<>();
+   // private Set<String> whiteList;
+   private View overlayView;
+    private WindowManager windowManager;
+    private View lockView;
+     boolean lockScreenShown = false;
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+
+        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            String packageName = event.getPackageName().toString();
+
+          //  showPasswordScreen(packageName);
+            Log.d(TAG, "Current package: " + packageName);
+            Toast.makeText(this, "App "+packageName+" has been taped", Toast.LENGTH_LONG).show();
+
+                if (isAppInstalled(packageName) && whiteList.contains(packageName)) {
+                    Log.d(TAG, "Blocking package: " + packageName);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        lockApp();
+                        Toast.makeText(this, "App " + packageName + " is blocked.", Toast.LENGTH_SHORT).show();
+
+                    }
+
+            }
+//            if (whiteList.contains(packageName)) {
+//                Log.d(TAG, "Yess Current package: " + packageName);
+//                if (Build.VERSION.SDK_INT >= 23) {
+//                    if (!Settings.canDrawOverlays(this)) {
+//                        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+//                                Uri.parse("package:"  + getPackageName()));
+//                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//                        startActivity(intent);
+//
+//
+//                    }else{
+//                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                           // lockApp();
+//                        }
+//                    }
+//                }
+//                else {
+//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+//                        lockApp();
+//                    }
+//                }
+//            } else {
+//                Log.d(TAG, "NOO Current package: " + packageName);
+//               unlockApp();
+//            }
+        }
+
+//        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+//            String packageName = event.getPackageName() != null ? event.getPackageName().toString() : null;
+//            if (packageName != null) {
+//                Log.d(TAG, "Current package: " + packageName);
+//                if (whiteList.contains(packageName)) {
+//                    blockApp(packageName);
+//                    Toast.makeText(this, "Unauthorized app blocked: " + packageName, Toast.LENGTH_SHORT).show();
+//                }
+//            }
+//        }
+    }
+    private void launchLockScreen() {
+        lockScreenShown = true;
+        Intent lockIntent = new Intent(this, MainActivity.class);
+        lockIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        lockIntent.putExtra("lock_screen", true);
+        startActivity(lockIntent);
+    }
+    private boolean isAppInstalled(String packageName) {
+        PackageManager packageManager = getPackageManager();
+        try {
+            packageManager.getPackageInfo(packageName, PackageManager.GET_ACTIVITIES);
+            Toast.makeText(this, "App " + packageName + " system app.", Toast.LENGTH_SHORT).show();
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+    @Override
+    protected void onServiceConnected() {
+        super.onServiceConnected();
+//        loadWhitelist();
+//        devicePolicyManager = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
+//        compName = new ComponentName(this, MyDeviceAdminReceiver.class);
+
+        AccessibilityServiceInfo info = new AccessibilityServiceInfo();
+        info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
+        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC;
+        info.notificationTimeout = 100;
+        setServiceInfo(info);
+
+        windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+       // showOverlay();
+        // Load whitelist
+        loadWhitelist();
+       // SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        //whiteList = prefs.getStringSet("whitelist", new HashSet<>());
+
+
+
+    }
+    private void blockApp(String packageName) {
+        if (devicePolicyManager.isAdminActive(compName)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                devicePolicyManager.setPackagesSuspended(compName, new String[]{packageName}, true);
+            }
+        } else {
+            ActivityManager activityManager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+            activityManager.killBackgroundProcesses(packageName);
+        }
+    }
+
+    @Override
+    public void onInterrupt() {
+    }
+
+    @SuppressLint("InflateParams")
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void lockApp() {
+        if (lockView == null) {
+            LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            lockView = inflater.inflate(R.layout.lock_screen, null);
+
+            WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+
+            );
+            params.gravity = Gravity.CENTER;
+            windowManager.addView(lockView, params);
+        }
+    }
+
+    private void unlockApp() {
+        if (lockView != null) {
+            windowManager.removeView(lockView);
+            lockView = null;
+        }
+    }
+
+    private void stopUnauthorizedApp(String packageName) {
+        // Use the ActivityManager to stop the unauthorized app
+        ActivityManager activityManager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        activityManager.killBackgroundProcesses(packageName);
+        Toast.makeText(this, "App "+packageName+" has been blocked", Toast.LENGTH_LONG).show();
+    }
+//    private void showPasswordScreen(String packageName) {
+//        Intent intent = new Intent(this, PasswordActivity.class);
+//        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+//        intent.putExtra("packageName", packageName);
+//        startActivity(intent);
+//        Toast.makeText(this, "App " + packageName + " has been blocked", Toast.LENGTH_LONG).show();
+//        Log.d(TAG, "Showing password screen for: " + packageName);
+//    }
+    private void loadWhitelist() {
+        // Load whitelist from shared preferences or any other persistent storage
+        whiteList.clear();
+//        whiteList.add("com.tranzit.tranzit_vtu");
+//        whiteList.add("com.dla.app.dla");
+        //whiteList.add("com.gbwhatsapp");
+        whiteList.add("com.whatsapp");
+        // Add other whitelisted package names com.gbwhatsapp com.whatsapp
+    }
+
+    private void showOverlay() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+        }}
+
+//    LayoutInflater inflater = (LayoutInflater) getSystemService(LAYOUT_INFLATER_SERVICE);
+//    overlayView = inflater.inflate(R.layout.overlay_layout, null);
+//
+//    WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+//            WindowManager.LayoutParams.MATCH_PARENT,
+//            WindowManager.LayoutParams.MATCH_PARENT,
+//            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O ?
+//                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY :
+//                    WindowManager.LayoutParams.TYPE_PHONE,
+//            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+//            PixelFormat.TRANSLUCENT);
+//
+//    params.gravity = Gravity.CENTER;
+//        windowManager.addView(overlayView, params);
+//    overlayShown = true;
+//
+//    // Set up overlay interactions, such as entering password
+//        overlayView.findViewById(R.id.overlay_button).setOnClickListener(v -> {
+//        windowManager.removeView(overlayView);
+//        overlayShown = false;
+//        Toast.makeText(this, "App " + packageName + " is blocked", Toast.LENGTH_SHORT).show();
+//    });
+
+}

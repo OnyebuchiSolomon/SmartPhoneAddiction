@@ -1,7 +1,7 @@
 import 'package:device_apps/device_apps.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:usage_stats/usage_stats.dart';
-
+import 'dart:developer' as devTool;
 class AppsProvider extends ChangeNotifier {
   AppsProvider() {
     // fetchUsageStats();
@@ -59,6 +59,7 @@ class AppsProvider extends ChangeNotifier {
 
     List<ApplicationWithIcon> appsWithIcons = [];
     for (var app in apps) {
+
       var appWithIcon = await DeviceApps.getApp(app.packageName, true);
       if (appWithIcon is ApplicationWithIcon) {
         appsWithIcons.add(appWithIcon);

@@ -1,4 +1,7 @@
+import 'dart:developer';
+
 import 'package:device_apps/device_apps.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -16,13 +19,14 @@ class WhiteListProvider extends ChangeNotifier {
   }
   List<ApplicationWithIcon> installedAppsWithIcons = [];
   List<ApplicationWithIcon> newInstalledAppsWithIcons = [];
+  static const MethodChannel _channel = MethodChannel('com.example.app_locker/accessibility');
 
   List<String> newList = [];
   bool isLoadingWhiteListApp = false;
   int numberOfSelectedApp = 0;
-
+bool isLocked =false;
   List<String> oldList = [];
-
+  List<String> isLockedList = [];
 
   Future<void> fetchInstalledApps() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -34,11 +38,10 @@ class WhiteListProvider extends ChangeNotifier {
       includeSystemApps: false,
     );
 
-
-    List<Application> filteredApps =[];
-    for(var w in whitelistedApps){
-      for(var a in apps){
-        if(w.contains(a.packageName)){
+    List<Application> filteredApps = [];
+    for (var w in whitelistedApps) {
+      for (var a in apps) {
+        if (w.contains(a.packageName)) {
           filteredApps.add(a);
         }
       }
@@ -55,16 +58,6 @@ class WhiteListProvider extends ChangeNotifier {
 
     notifyListeners();
   }
-
-
-
-
-
-
-
-
-
-
 
   Future<void> loadIconApp() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -86,7 +79,7 @@ class WhiteListProvider extends ChangeNotifier {
   Future<void> loadApps() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     oldList = prefs.getStringList('whitedPackageName') ?? [];
-
+    isLockedList = prefs.getStringList('blockedApp')??[];
     //
     //  List<ApplicationWithIcon> appsWithIcons = [];
     //  for (var app in oldList) {
@@ -195,29 +188,96 @@ class WhiteListProvider extends ChangeNotifier {
   Future<void> removeWhiteListed(String packageName) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> oldList = prefs.getStringList('whitedPackageName') ?? [];
-    oldList.removeWhere((element) => element == packageName);
-    newList.addAll(oldList);
-    devTool.log('new  after removing the newList ${newList.length}');
-    await prefs.setStringList('whitedPackageName', newList).whenComplete(() {
-      newList = [];
+    if (!isLockedList.contains(packageName)) {
+      oldList.removeWhere((element) => element == packageName);
+      newList.addAll(oldList);
+      devTool.log('new  after removing the newList ${newList.length}');
+      await prefs.setStringList('whitedPackageName', newList).whenComplete(() {
+        newList = [];
 
-      List<String> oldList = prefs.getStringList('whitedPackageName') ?? [];
-      devTool.log(' after removing the newRecordt ${oldList.length}');
-      notifyListeners();
+        List<String> oldList = prefs.getStringList('whitedPackageName') ?? [];
+        devTool.log(' after removing the newRecordt ${oldList.length}');
+        notifyListeners();
+        Fluttertoast.showToast(
+            msg: "Removed successfully",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.CENTER,
+            timeInSecForIosWeb: 1,
+            backgroundColor: Colors.green,
+            textColor: Colors.white,
+            fontSize: 16.0);
+      });
+    } else{
       Fluttertoast.showToast(
-          msg: "Removed successfully",
+          msg: "Please remove the app from blocking state",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0);
+    }
+  }
+Future<void> removeBlockApp(String packageName)async {
+   const platform = MethodChannel('com.example.app_locker/accessibility');
+   SharedPreferences prefs = await SharedPreferences.getInstance();
+  List<String> oldList = prefs.getStringList('blockedApp') ?? [];
+  oldList.removeWhere((element) => element == packageName);
+  prefs.setStringList('blockedApp', oldList);
+   List<String> currentValue = prefs.getStringList('blockedApp') ?? [];
+  try {
+    log('sending message to _channel, ');
+    await platform.invokeListMethod('setBlockedApps', {'blockedApps': currentValue});
+    Fluttertoast.showToast(
+        msg: "Removed successfully",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.CENTER,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.green,
+        textColor: Colors.white,
+        fontSize: 16.0);
+  } on PlatformException catch (e) {
+    print("Failed to set blocked apps: '${e.message}'.");
+  }
+}
+  Future<void> blockApp(String packageName)async {
+    const platform = MethodChannel('com.example.app_locker/accessibility');
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> oldList = prefs.getStringList('blockedApp') ?? [];
+    oldList.add(packageName);
+    prefs.setStringList('blockedApp', oldList);
+    List<String> currentValue = prefs.getStringList('blockedApp') ?? [];
+    try {
+      log('sending message to _channel, ');
+      await platform.invokeListMethod('setBlockedApps', {'blockedApps': currentValue});
+      Fluttertoast.showToast(
+          msg: "Blocked successfully",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.CENTER,
           timeInSecForIosWeb: 1,
           backgroundColor: Colors.green,
           textColor: Colors.white,
           fontSize: 16.0);
-    });
+    } on PlatformException catch (e) {
+      print("Failed to set blocked apps: '${e.message}'.");
+    }
   }
 
+  Future<bool>checkIsBlockedApp(String packageName)async{
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> oldList = prefs.getStringList('blockedApp') ?? [];
+    if(oldList.contains(packageName)){
+      isLocked = true;
+      notifyListeners();
+      return true;
+    }
+    isLocked = false;
+    notifyListeners();
+    return false;
+  }
   Future<void> fetchUsageStats() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-prefs.reload();
+    prefs.reload();
 
     DateTime endDate = DateTime.now();
     DateTime startDate =
@@ -233,6 +293,8 @@ prefs.reload();
       List<UsageInfo> usageStats =
           await UsageStats.queryUsageStats(startDate, endDate);
       for (var installedApp in apps) {
+        // devTool.log(
+        //     'packageName: ${installedApp.packageName}');
         for (var usage in usageStats) {
           if (installedApp.packageName == usage.packageName) {
             selectedUsageStat.add(usage);
@@ -246,64 +308,59 @@ prefs.reload();
           prefs.getStringList('whitedPackageName') ?? [];
       List<String> appPackageName = [];
 
-     // List<String> whiteListHolder = whitelistedApps;
+      // List<String> whiteListHolder = whitelistedApps;
       devTool.log(
           'first whitelistedApps: $whitelistedApps...whitelistedApps length: ${whitelistedApps.length}');
 
       if (whitelistedApps.isEmpty) {
-        devTool.log(
-            'white list is empty');
-        for(var s in selectedUsageStats){
+        devTool.log('white list is empty');
+        for (var s in selectedUsageStats) {
           final totalTimeInForeground = s.totalTimeInForeground;
           int total = int.parse(totalTimeInForeground!);
           double usageInHours = total / 3600000;
           devTool.log(
               'Empty side All app hour: ${usageInHours.toStringAsFixed(1)}...Package name: ${s.packageName}');
-          if(usageInHours>=2.0){
+          if (usageInHours >= 2.0) {
             devTool.log(
                 'Empty side hour: ${usageInHours.toStringAsFixed(1)}...Package name: ${s.packageName}');
             appPackageName.add(s.packageName.toString());
           }
         }
-       // whitelistedApps.addAll(appPackageName);
+        // whitelistedApps.addAll(appPackageName);
         List<String> uniqueList = appPackageName.toSet().toList();
         prefs.setStringList('whitedPackageName', uniqueList);
       }
 
-        for (var selet in selectedUsageStats) {
-          final totalTimeInForeground = selet.totalTimeInForeground;
-          int total = int.parse(totalTimeInForeground!);
-          double usageInHours = total / 3600000;
-          List<String> whitelisted =
-              prefs.getStringList('whitedPackageName') ?? [];
-          devTool.log(
-              'NOT Empty side ALL hour: ${usageInHours.toStringAsFixed(1)}...Package name: ${selet.packageName}');
-          for(var s in whitelisted){
-            // devTool.log(
-            //     'matched ? ${s.contains(selet.packageName!)} hour: ${usageInHours.toStringAsFixed(1)}..main.Package name: ${selet.packageName} ..whitelist.Package name: ${s}');
-            if(!selet.packageName!.contains(s)){
-              if(usageInHours>=2.0){
-                // devTool.log(
-                //     'NOT Empty side hour: ${usageInHours.toStringAsFixed(1)}...Package name: ${selet.packageName}');
-                appPackageName.add(selet.packageName.toString());
-                devTool.log(
-                    'Added ${selet.packageName!} hour: ${usageInHours.toStringAsFixed(1)}');
-
-              }else{
-
-                return;
-              }
-
-            }else{
-              //
+      for (var selet in selectedUsageStats) {
+        final totalTimeInForeground = selet.totalTimeInForeground;
+        int total = int.parse(totalTimeInForeground!);
+        double usageInHours = total / 3600000;
+        List<String> whitelisted =
+            prefs.getStringList('whitedPackageName') ?? [];
+        devTool.log(
+            'NOT Empty side ALL hour: ${usageInHours.toStringAsFixed(1)}...Package name: ${selet.packageName}');
+        for (var s in whitelisted) {
+          // devTool.log(
+          //     'matched ? ${s.contains(selet.packageName!)} hour: ${usageInHours.toStringAsFixed(1)}..main.Package name: ${selet.packageName} ..whitelist.Package name: ${s}');
+          if (!selet.packageName!.contains(s)) {
+            if (usageInHours >= 2.0) {
+              // devTool.log(
+              //     'NOT Empty side hour: ${usageInHours.toStringAsFixed(1)}...Package name: ${selet.packageName}');
+              appPackageName.add(selet.packageName.toString());
+              devTool.log(
+                  'Added ${selet.packageName!} hour: ${usageInHours.toStringAsFixed(1)}');
+            } else {
               return;
             }
+          } else {
+            //
+            return;
           }
-
         }
-        whitelistedApps.addAll(appPackageName);
+      }
+      whitelistedApps.addAll(appPackageName);
       List<String> uniqueList = appPackageName.toSet().toList();
-        prefs.setStringList('whitedPackageName', uniqueList);
+      prefs.setStringList('whitedPackageName', uniqueList);
       oldList = prefs.getStringList('whitedPackageName') ?? [];
       final notifiedApps = prefs.getStringList('notified_apps') ?? [];
       devTool.log(
@@ -376,28 +433,26 @@ prefs.reload();
 
        */
 
-
-
-
-    notifyListeners();
+      notifyListeners();
     } catch (e) {}
   }
-  sendNotice() async {
 
+  sendNotice() async {
     DateTime endDate = DateTime.now();
-    DateTime startDate =
-    DateTime(endDate.year, endDate.month, endDate.day);
+    DateTime startDate = DateTime(endDate.year, endDate.month, endDate.day);
     List<UsageInfo> usageStats =
-    await UsageStats.queryUsageStats(startDate, endDate);
+        await UsageStats.queryUsageStats(startDate, endDate);
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.reload();
     List<String> whitelistedApps =
         prefs.getStringList('whitedPackageName') ?? [];
+    List<String> lockApp = [];
+    List<String> blockApp = prefs.getStringList('blockedApp') ?? [];
     final notifiedApps = prefs.getStringList('notified_apps') ?? [];
-    if(whitelistedApps.isNotEmpty){
+    if (whitelistedApps.isNotEmpty) {
       for (var whitelistedApp in whitelistedApps) {
         for (var stats in usageStats) {
-          if(whitelistedApp==stats.packageName) {
+          if (whitelistedApp == stats.packageName) {
             final packageName = stats.packageName;
             final totalTimeInForeground = stats.totalTimeInForeground;
             int total = int.parse(totalTimeInForeground ?? '0');
@@ -482,8 +537,14 @@ prefs.reload();
 
      */
 
-            if (usageInHours >= 2 && !notifiedApps.contains('${stats.packageName}_2')) {
-              String  appName =packageName!.split('.').last;
+            if (usageInHours >= 0.5 && (!blockApp.contains(packageName)||blockApp.isEmpty)) {
+             devTool.log('added to AppLock, $packageName');
+              lockApp.add(packageName.toString());
+            }
+
+            if (usageInHours >= 2 &&
+                !notifiedApps.contains('${stats.packageName}_2')) {
+              String appName = packageName!.split('.').last;
 
               await flutterLocalNotificationsPlugin.show(
                 packageName.hashCode,
@@ -500,8 +561,9 @@ prefs.reload();
               );
               notifiedApps.add('${stats.packageName}_2');
               await prefs.setStringList('notified_apps', notifiedApps);
-            } else if (usageInHours >= 4 && !notifiedApps.contains('${stats.packageName}_4')) {
-              String  appName =packageName!.split('.').last;
+            } else if (usageInHours >= 4 &&
+                !notifiedApps.contains('${stats.packageName}_4')) {
+              String appName = packageName!.split('.').last;
 
               await flutterLocalNotificationsPlugin.show(
                 packageName.hashCode,
@@ -518,8 +580,9 @@ prefs.reload();
               );
               notifiedApps.add('${stats.packageName}_4');
               await prefs.setStringList('notified_apps', notifiedApps);
-            } else if (usageInHours >= 6 && !notifiedApps.contains('${stats.packageName}_6')) {
-              String  appName =packageName!.split('.').last;
+            } else if (usageInHours >= 6 &&
+                !notifiedApps.contains('${stats.packageName}_6')) {
+              String appName = packageName!.split('.').last;
 
               await flutterLocalNotificationsPlugin.show(
                 packageName.hashCode,
@@ -538,12 +601,15 @@ prefs.reload();
               await prefs.setStringList('notified_apps', notifiedApps);
             }
           }
-
         }
       }
-
-    }else{
+      prefs.setStringList('blockedApp', lockApp);
+      devTool.log('message AppLock,');
+//setBlockedApps(['com.whatsapp']);
+    } else {
       print('whitelisted is empty');
     }
   }
+
+
 }

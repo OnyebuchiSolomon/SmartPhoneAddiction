@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="password">Password</string>
+    <string name="lock_image">Lock image</string>
+    <string name="unlock">Unlock</string>
+    <string name="applock">AppLock</string>
+    <string name="cancel">Cancel</string>
+    <string name="describe">This app has been locked due to over usage</string>
+    <string name="app_is_locked">App is locked</string>
+    <string name="exit">Exit</string>
+</resources>

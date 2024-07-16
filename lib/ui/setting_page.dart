@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +26,8 @@ class _SettingsPageState extends State<SettingsPage> {
   late bool notice = false;
   late Timer _timer;
   late Settings _settings;
+  static const platform = MethodChannel('com.example.app_locker/accessibility');
+
   Future<void> setEnable(bool value) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setBool('notification', value);
@@ -271,9 +273,25 @@ class _SettingsPageState extends State<SettingsPage> {
                         UsageStats.grantUsagePermission();
                       },
                       color: Colors.green[900],
-                      child: const Text('GRANT'),
+                      child: const Text('Grant Usage Permission'),
                     ),
-                  )
+                  ),
+                  MaterialButton(
+                    minWidth: MediaQuery.of(context).size.width -20,
+                    onPressed: () {
+                      _requestAccessibilityPermission();
+                    },
+                    color: Colors.green[900],
+                    child: const Text('Request Accessibility Permission'),
+                  ),
+                  // MaterialButton(
+                  //   minWidth: MediaQuery.of(context).size.width -20,
+                  //   onPressed: () {
+                  //     UsageStats.grantUsagePermission();
+                  //   },
+                  //   color: Colors.green[900],
+                  //   child: const Text('GRANT'),
+                  // )
                 ],
               ),
             ),
@@ -281,6 +299,13 @@ class _SettingsPageState extends State<SettingsPage> {
         });
   }
 
+  void _requestAccessibilityPermission() async {
+    try {
+      await platform.invokeMethod('openAccessibilitySettings');
+    } on PlatformException catch (e) {
+      print("Failed to open accessibility settings: '${e.message}'.");
+    }
+  }
   _showPhasesButtonSheet() {
     showModalBottomSheet(
         isScrollControlled: false,

@@ -1,8 +1,10 @@
 import 'dart:async';
-
+import 'dart:developer';
+import 'package:flutter/services.dart';
 import 'package:device_apps/device_apps.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/foundation.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +31,95 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   // List<EventUsageInfo> events = [];
   // Map<String?, NetworkInfo?> _netInfoMap = Map();Reading a NULL string not supported here.
+  static const platform = MethodChannel('com.example.app_locker/accessibility');
 
+
+  Future checkOverlayPermission() async {
+    try {
+      return await platform
+          .invokeMethod('checkOverlayPermission')
+          .then((value) {
+       log("$value", name: "checkOverlayPermission");
+        //isOverlayPermissionGiven = value as bool;
+        //update();
+       // return isOverlayPermissionGiven;
+      });
+    } on PlatformException catch (e) {
+      log("Failed to Invoke: '${e.message}'.");
+      // isOverlayPermissionGiven = false;
+      // update();
+      // return isOverlayPermissionGiven;
+    }
+  }
+  Future<void> _activateDeviceAdmin() async {
+    try {
+      await platform.invokeMethod('activateAdmin');
+    } on PlatformException catch (e) {
+      print("Failed to activate admin: '${e.message}'.");
+      Fluttertoast.showToast(
+          msg: "Failed to activate admin",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0);
+    }
+  }
+  Future<void> startForegroundService() async {
+    try {
+      await platform.invokeMethod('startForegroundService');
+      Fluttertoast.showToast(
+          msg: "  started ForegroundService ",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+          fontSize: 16.0);
+    } on PlatformException catch (e) {
+      print("Failed to startForegroundService admin: '${e.message}'.");
+      Fluttertoast.showToast(
+          msg: "Failed to startForegroundService admin",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0);
+    }
+  }
+  Future<void> stopForegroundService() async {
+    try {
+      await platform.invokeMethod('stopForegroundService');
+      Fluttertoast.showToast(
+          msg: "   stoped ForegroundService ",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+          fontSize: 16.0);
+    } on PlatformException catch (e) {
+      print("Failed to stopForegroundService admin: '${e.message}'.");
+      Fluttertoast.showToast(
+          msg: "Failed to activate admin",
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.CENTER,
+          timeInSecForIosWeb: 1,
+          backgroundColor: Colors.red,
+          textColor: Colors.white,
+          fontSize: 16.0);
+    }
+  }
+  static Future<void> setBlockedApps() async {
+    try {
+     log('sending message to _channel, ');
+      await platform.invokeListMethod('setBlockedApps', {'blockedApps': []});
+    } on PlatformException catch (e) {
+      print("Failed to set blocked apps: '${e.message}'.");
+    }
+  }
 /*
   Future<void> initUsage() async {
     try {
@@ -100,7 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // _fetchInstalledApps();
   }
 
-  permission() {}
+
   // Future<void> initializeNotifications() async {
   //   const AndroidInitializationSettings initializationSettingsAndroid =
   //   AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -118,17 +208,23 @@ class _MyHomePageState extends State<MyHomePage> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        title: Text(
-          widget.title,
-          style: GoogleFonts.poppins(
-              textStyle: const TextStyle(
-                  fontSize: 18,
-                  color: Colors.black,
-                  fontWeight: FontWeight.w500)),
+        title: InkWell(
+          onTap: (){
+            _activateDeviceAdmin();
+          },
+          child: Text(
+            widget.title,
+            style: GoogleFonts.poppins(
+                textStyle: const TextStyle(
+                    fontSize: 18,
+                    color: Colors.black,
+                    fontWeight: FontWeight.w500)),
+          ),
         ),
         actions: [
           IconButton(
               onPressed: () {
+               // _requestAccessibilityPermission();
                 Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -139,6 +235,48 @@ class _MyHomePageState extends State<MyHomePage> {
                 color: Colors.orange,
                 size: 25,
               )),
+          /*
+          IconButton(
+              onPressed: () {
+                checkOverlayPermission();
+                // Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //         builder: (context) => const SettingsPage()));
+              },//RIBAm
+              icon: const Icon(
+                Icons.person,
+                color: Colors.orange,
+                size: 25,
+              )),
+          IconButton(
+              onPressed: () {
+                setBlockedApps();
+               // stopForegroundService();
+                // Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //         builder: (context) => const SettingsPage()));
+              },
+              icon: const Icon(
+                Icons.start,
+                color: Colors.orange,
+                size: 25,
+              )),
+          IconButton(
+              onPressed: () {
+               // stopForegroundService();
+                // Navigator.push(
+                //     context,
+                //     MaterialPageRoute(
+                //         builder: (context) => const SettingsPage()));
+              },//RIBAm
+              icon: const Icon(
+                Icons.stop,
+                color: Colors.orange,
+                size: 25,
+              )),
+          */
         ],
       ),
       body: Padding(
@@ -233,7 +371,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ],
                   );
-                }
+                }//.--   ....  .-  .-.. .
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
